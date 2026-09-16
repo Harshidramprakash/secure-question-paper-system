@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Examination Portal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="flex-between">
+        <div>
+            <h1>📖 Examination Portal</h1>
+            <p class="subtitle">Secure In-Memory Decryption Active</p>
+        </div>
+        <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">Exit Portal</a>
+    </div>
+</div>
+
+<div class="alert alert-success">
+    <i class="fas fa-check-circle"></i> <strong>Paper Released Successfully.</strong> 
+    The multi-party assembled question paper is now decrypted and visible.
+</div>
+
+<div class="card shadow-lg border-0 mb-5">
+    <div class="card-header bg-dark text-white text-center py-3">
+        <h2 class="m-0 text-white">{{ paper.title }}</h2>
+        <small>Date: {{ paper.exam_date }}</small>
+    </div>
+    <div class="card-body p-0">
+        <!-- Prevent copy/paste visually (Note: true prevention requires more than just CSS) -->
+        <pre class="bg-white p-5 m-0" style="white-space: pre-wrap; font-family: 'Times New Roman', serif; font-size: 1.1rem; user-select: none;">{{ content }}</pre>
+    </div>
+    <div class="card-footer text-center text-muted small bg-light">
+        End of Question Paper &middot; ID: {{ paper.id }} &middot; Integrity Verified
+    </div>
+</div>
+{% endblock %}

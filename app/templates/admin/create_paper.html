@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Create Question Paper{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2 class="section-title">Create New Question Paper</h2>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('admin.papers') }}" class="btn btn-secondary">Back to Papers</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        Paper Details & Section Assignment
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('admin.create_paper') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            
+            <h4 class="mb-3">Paper Information</h4>
+            <div class="mb-3">
+                <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="title" name="title" required placeholder="e.g., Final Exam 2026 - Computer Science">
+            </div>
+            
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="2"></textarea>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="exam_date" class="form-label">Exam Date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="exam_date" name="exam_date" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="release_time" class="form-label">Release Time (UTC) <span class="text-danger">*</span></label>
+                    <input type="datetime-local" class="form-control" id="release_time" name="release_time" required>
+                    <div class="form-text">The exact time the paper becomes available to the Exam Officer.</div>
+                </div>
+            </div>
+            
+            <hr class="my-4">
+            
+            <h4 class="mb-3">Multi-Party Section Assignment</h4>
+            <div class="alert alert-info">
+                <strong>Security Requirement:</strong> To ensure Multi-Party Question Paper Assembly, you must assign different question setters to different sections.
+            </div>
+            
+            <div class="row">
+                <!-- Section 1 -->
+                <div class="col-md-6">
+                    <div class="card bg-dark border-secondary mb-3">
+                        <div class="card-header border-secondary">Section 1</div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="section1_name" class="form-label">Section Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="section1_name" name="section1_name" required value="Part A: Multiple Choice">
+                            </div>
+                            <div class="mb-3">
+                                <label for="section1_setter" class="form-label">Assign Setter <span class="text-danger">*</span></label>
+                                <select class="form-select" id="section1_setter" name="section1_setter" required>
+                                    <option value="">-- Select Setter --</option>
+                                    {% for setter in setters %}
+                                        <option value="{{ setter.id }}">{{ setter.username }} ({{ setter.role_display }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Section 2 -->
+                <div class="col-md-6">
+                    <div class="card bg-dark border-secondary mb-3">
+                        <div class="card-header border-secondary">Section 2</div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="section2_name" class="form-label">Section Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="section2_name" name="section2_name" required value="Part B: Essay/Long Form">
+                            </div>
+                            <div class="mb-3">
+                                <label for="section2_setter" class="form-label">Assign Setter <span class="text-danger">*</span></label>
+                                <select class="form-select" id="section2_setter" name="section2_setter" required>
+                                    <option value="">-- Select Setter --</option>
+                                    {% for setter in setters %}
+                                        <option value="{{ setter.id }}">{{ setter.username }} ({{ setter.role_display }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                <button type="submit" class="btn btn-primary">Create Paper and Assign Sections</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,58 @@
+# ============================================================================
+# SQPAS .gitignore
+# ============================================================================
+
+# --- Environment & Secrets ---
+.env
+.env.*
+!.env.example
+secrets/
+
+# --- Python ---
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+
+# --- Database ---
+*.db
+*.sqlite3
+instance/
+
+# --- Private keys & certificates ---
+*.pem
+*.key
+*.crt
+*.csr
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Testing ---
+.pytest_cache/
+htmlcov/
+.coverage
+
+# --- QR codes generated during seed ---
+qr_*.png
+
+# --- Development-only scripts (contain MFA secret access) ---
+# get_otp.py is a local dev utility and must NOT be pushed to public repos.
+# If it was previously committed, rotate all MFA secrets before publishing.
+get_otp.py
+
+# --- Demo Credentials ---
+.demo_credentials.txt

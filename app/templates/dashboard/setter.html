@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Setter Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="flex-between">
+        <div>
+            <h1>📝 My Assigned Sections</h1>
+            <p class="subtitle">View and manage your assigned question paper sections</p>
+        </div>
+        <span class="security-indicator secure">
+            <span class="pulse"></span>
+            Encrypted Submissions
+        </span>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="card-grid">
+    <div class="stat-card">
+        <div class="stat-icon blue">📋</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ sections | length }}</div>
+            <div class="stat-label">Total Assigned</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon amber">⏳</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ sections | selectattr('status', 'equalto', 'PENDING') | list | length }}</div>
+            <div class="stat-label">Pending Submission</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green">✅</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ sections | selectattr('status', 'equalto', 'APPROVED') | list | length }}</div>
+            <div class="stat-label">Approved</div>
+        </div>
+    </div>
+</div>
+
+<!-- Section List -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h2 class="card-title m-0">My Sections</h2>
+        <a href="{{ url_for('setter.sections') }}" class="btn btn-sm btn-outline-info">View All Sections</a>
+    </div>
+
+    {% if sections %}
+    {% for section in sections %}
+    <div class="section-item border-bottom p-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="section-info">
+                <h3 class="h5 mb-1">{{ section.section_name }}</h3>
+                <div class="section-meta text-muted small">
+                    Paper: {{ section.paper.title }} &middot;
+                    Order: #{{ section.section_order }}
+                    {% if section.submitted_at %}
+                    &middot; Submitted: {{ section.submitted_at.strftime('%Y-%m-%d %H:%M') }}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="btn-group">
+                <span class="badge badge-{{ section.status | lower }} me-3 align-self-center">{{ section.status }}</span>
+                {% if section.status in ('PENDING', 'DRAFT', 'REJECTED') %}
+                <a href="{{ url_for('setter.section_detail', section_id=section.id) }}" class="btn btn-sm btn-primary">Work on Section</a>
+                {% else %}
+                <a href="{{ url_for('setter.section_detail', section_id=section.id) }}" class="btn btn-sm btn-outline-secondary">View</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state p-5 text-center">
+        <div class="empty-icon fs-1 mb-3">📭</div>
+        <p class="text-muted">No sections assigned yet. The administrator will assign sections to you.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Review Section{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="flex-between">
+        <div>
+            <h1>Review: {{ section.section_name }}</h1>
+            <p class="subtitle">Paper: {{ section.paper.title }}</p>
+        </div>
+        <a href="{{ url_for('admin.paper_detail', paper_id=section.paper_id) }}" class="btn btn-outline-secondary">Back to Paper</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header flex-between">
+                <h3 class="m-0">Section Content</h3>
+                <span class="security-indicator secure">
+                    <span class="pulse"></span>
+                    Decrypted for Review
+                </span>
+            </div>
+            <div class="card-body">
+                {% if content %}
+                    <pre class="bg-light p-3 border rounded" style="white-space: pre-wrap; font-family: monospace;">{{ content }}</pre>
+                {% else %}
+                    <div class="alert alert-warning">No content available or decryption failed.</div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Previous Comments -->
+        {% set approvals = section.paper.approvals.filter_by(section_id=section.id).all() | sort(attribute='created_at', reverse=True) %}
+        {% if approvals %}
+        <div class="card">
+            <div class="card-header">
+                <h3 class="m-0">Review History</h3>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for approval in approvals %}
+                <li class="list-group-item">
+                    <div class="d-flex justify-content-between">
+                        <strong>{{ approval.approver.username }}</strong>
+                        <span class="text-muted small">{{ approval.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                    <div>
+                        <span class="badge badge-{{ approval.action | lower }}">{{ approval.action }}</span>
+                    </div>
+                    {% if approval.comments %}
+                    <p class="mt-2 mb-0 text-muted">{{ approval.comments }}</p>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="m-0">Metadata</h3>
+            </div>
+            <div class="card-body">
+                <dl class="mb-0">
+                    <dt>Setter</dt>
+                    <dd>{{ section.setter.username }}</dd>
+                    
+                    <dt>Status</dt>
+                    <dd><span class="badge badge-{{ section.status | lower }}">{{ section.status }}</span></dd>
+                    
+                    <dt>Submitted At</dt>
+                    <dd>{{ section.submitted_at.strftime('%Y-%m-%d %H:%M:%S UTC') if section.submitted_at else 'N/A' }}</dd>
+                    
+                    <dt>Integrity Hash (SHA-256)</dt>
+                    <dd class="text-truncate" title="{{ section.content_hash }}">
+                        <small><code>{{ section.content_hash }}</code></small>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        {% if section.status in ('SUBMITTED', 'REJECTED') %}
+        <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+                <h3 class="m-0 text-white">Review Decision</h3>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin.review_section', section_id=section.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="form-group mb-3">
+                        <label for="comments" class="form-label">Review Comments (Required for Rejection)</label>
+                        <textarea class="form-control" id="comments" name="comments" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" name="action" value="approve" class="btn btn-success btn-lg">
+                            ✅ Approve Section
+                        </button>
+                        <button type="submit" name="action" value="reject" class="btn btn-danger btn-lg mt-2">
+                            ❌ Reject Section
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

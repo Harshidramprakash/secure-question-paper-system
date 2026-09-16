@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Officer Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="flex-between">
+        <div>
+            <h1>🚀 Examination Officer Dashboard</h1>
+            <p class="subtitle">Authorize paper release and access the examination portal</p>
+        </div>
+        <span class="security-indicator secure">
+            <span class="pulse"></span>
+            Controlled Release Active
+        </span>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="card-grid">
+    <div class="stat-card">
+        <div class="stat-icon blue">📋</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ papers | length }}</div>
+            <div class="stat-label">Visible Papers</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon amber">⏳</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ papers | selectattr('status', 'equalto', 'READY_FOR_RELEASE') | list | length }}</div>
+            <div class="stat-label">Awaiting Authorization</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon purple">🚀</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ papers | selectattr('status', 'equalto', 'RELEASED') | list | length }}</div>
+            <div class="stat-label">Released</div>
+        </div>
+    </div>
+</div>
+
+<!-- Papers -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Examination Papers</h2>
+    </div>
+
+    {% if papers %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Exam Date</th>
+                    <th>Release Time</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for paper in papers %}
+                <tr>
+                    <td>#{{ paper.id }}</td>
+                    <td><strong>{{ paper.title }}</strong></td>
+                    <td>{{ paper.exam_date.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ paper.release_time.strftime('%Y-%m-%d %H:%M %Z') if paper.release_time else 'Not set' }}</td>
+                    <td><span class="badge badge-{{ paper.status | lower | replace('_', '-') }}">{{ paper.status }}</span></td>
+                    <td>
+                        {% if paper.status == 'READY_FOR_RELEASE' %}
+                        <a href="{{ url_for('officer.release_panel', paper_id=paper.id) if 'officer.release_panel' | has_endpoint else '#' }}"
+                           class="btn btn-sm btn-warning">Authorize</a>
+                        {% elif paper.status == 'RELEASED' %}
+                        <a href="{{ url_for('officer.exam_portal', paper_id=paper.id) if 'officer.exam_portal' | has_endpoint else '#' }}"
+                           class="btn btn-sm btn-success">View Paper</a>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <p>No papers available for release yet. Papers appear here after all sections are approved.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

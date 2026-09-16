@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Release Panel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="flex-between">
+        <div>
+            <h1>🔐 Release Authorization</h1>
+            <p class="subtitle">Secure Time-Locked Release for: {{ paper.title }}</p>
+        </div>
+        <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card mb-4 text-center">
+            <div class="card-header bg-dark text-white">
+                Release Conditions
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush text-start mb-4">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Multi-Party Assembly Complete
+                        {% if paper.status == 'READY_FOR_RELEASE' %}
+                            <span class="badge bg-success rounded-pill">✓ Met</span>
+                        {% else %}
+                            <span class="badge bg-danger rounded-pill">✗ Not Met</span>
+                        {% endif %}
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Scheduled Release Time Reached
+                        <span>
+                            <small class="text-muted me-2">Scheduled: {{ paper.release_time.strftime('%Y-%m-%d %H:%M:%S UTC') }}</small>
+                            {% if time_reached %}
+                                <span class="badge bg-success rounded-pill">✓ Met</span>
+                            {% else %}
+                                <span class="badge bg-danger rounded-pill">✗ Not Met</span>
+                            {% endif %}
+                        </span>
+                    </li>
+                </ul>
+
+                {% if paper.status != 'READY_FOR_RELEASE' %}
+                    <div class="alert alert-warning">
+                        This paper is not fully assembled. All sections must be approved and assembled by the Admin first.
+                    </div>
+                {% elif not time_reached %}
+                    <div class="alert alert-danger">
+                        <strong>Time Lock Active:</strong> The scheduled release time has not been reached. 
+                        Current server time is {{ now.strftime('%Y-%m-%d %H:%M:%S UTC') }}.
+                    </div>
+                    <button class="btn btn-secondary btn-lg" disabled>Release Locked</button>
+                {% else %}
+                    <div class="alert alert-success">
+                        <strong>All conditions met.</strong> The paper is ready for secure decryption and release.
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('officer.release_panel', paper_id=paper.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-warning btn-lg px-5">
+                            <i class="fas fa-key"></i> Authorize & Decrypt Paper
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

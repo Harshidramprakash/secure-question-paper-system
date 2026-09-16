@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Manage Question Papers{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2 class="section-title">Manage Question Papers</h2>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('admin.create_paper') }}" class="btn btn-primary">Create New Paper</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        All Question Papers
+    </div>
+    <div class="card-body">
+        {% if papers %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Exam Date</th>
+                            <th>Status</th>
+                            <th>Release Time</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for paper in papers %}
+                        <tr>
+                            <td>{{ paper.id }}</td>
+                            <td>{{ paper.title }}</td>
+                            <td>{{ paper.exam_date }}</td>
+                            <td><span class="badge bg-secondary">{{ paper.status }}</span></td>
+                            <td>{{ paper.release_time.strftime('%Y-%m-%d %H:%M:%S UTC') if paper.release_time else 'N/A' }}</td>
+                            <td>
+                                <a href="{{ url_for('admin.paper_detail', paper_id=paper.id) }}" class="btn btn-sm btn-info">View Details</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">No question papers have been created yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

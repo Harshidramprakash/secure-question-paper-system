@@ -1,0 +1,56 @@
+# SQPAS — systemd service unit
+# Copy to: /etc/systemd/system/sqpas.service
+#
+# Usage:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable sqpas
+#   sudo systemctl start sqpas
+#   sudo systemctl status sqpas
+#   sudo journalctl -u sqpas -f
+
+[Unit]
+Description=SQPAS — Secure Question Paper Assembly System (Gunicorn)
+Documentation=https://github.com/your-repo/sqpas
+After=network.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/sqpas
+RuntimeDirectory=sqpas
+
+# Load environment variables from .env file
+EnvironmentFile=/home/ubuntu/sqpas/.env
+
+# Virtual environment activation + Gunicorn start
+ExecStart=/home/ubuntu/sqpas/venv/bin/gunicorn wsgi:app --config gunicorn.conf.py
+ExecReload=/bin/kill -s HUP $MAINPID
+
+# Restart policy
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=3
+StartLimitIntervalSec=60
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/sqpas/instance
+
+# Timeouts
+TimeoutStartSec=30
+TimeoutStopSec=30
+KillMode=mixed
+KillSignal=SIGTERM
+
+# Logging (journald → CloudWatch)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sqpas
+
+[Install]
+WantedBy=multi-user.target

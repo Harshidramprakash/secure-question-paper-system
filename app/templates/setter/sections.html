@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}My Assigned Sections{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2 class="section-title">My Assigned Sections</h2>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('dashboard.index') }}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <i class="fas fa-shield-alt"></i> <strong>Multi-Party Assembly:</strong> You only have access to the sections assigned directly to you. You cannot view the rest of the paper.
+</div>
+
+<div class="card">
+    <div class="card-header">
+        Pending & Submitted Sections
+    </div>
+    <div class="card-body">
+        {% if sections %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Paper Title</th>
+                            <th>Section Name</th>
+                            <th>Exam Date</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for section in sections %}
+                        <tr>
+                            <td>{{ section.paper.title }}</td>
+                            <td>{{ section.section_name }}</td>
+                            <td>{{ section.paper.exam_date }}</td>
+                            <td>
+                                {% set badge_class = 'bg-secondary' %}
+                                {% if section.status == 'SUBMITTED' %}
+                                    {% set badge_class = 'bg-primary' %}
+                                {% elif section.status == 'APPROVED' %}
+                                    {% set badge_class = 'bg-success' %}
+                                {% elif section.status == 'REJECTED' %}
+                                    {% set badge_class = 'bg-danger' %}
+                                {% endif %}
+                                <span class="badge {{ badge_class }}">{{ section.status }}</span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('setter.section_detail', section_id=section.id) }}" class="btn btn-sm btn-info">
+                                    {% if section.status == 'PENDING' %}Work on Section{% else %}View Section{% endif %}
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">You have no assigned sections at this time.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

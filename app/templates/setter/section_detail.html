@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Work on Section{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2 class="section-title">{{ section.paper.title }} - {{ section.section_name }}</h2>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('setter.sections') }}" class="btn btn-secondary">Back to Sections</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                Question Content
+            </div>
+            <div class="card-body">
+                {% if section.status in ['SUBMITTED', 'APPROVED'] %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> This section has been submitted and securely encrypted using AES-256-GCM. It can no longer be edited.
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label">SHA-256 Integrity Hash:</label>
+                        <input type="text" class="form-control font-monospace text-muted" value="{{ section.content_hash }}" readonly>
+                    </div>
+                {% else %}
+                    <form method="POST" action="{{ url_for('setter.section_detail', section_id=section.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-lock"></i> Content is securely encrypted before being saved to the database. Plaintext is never stored.
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="content" class="form-label">Enter Questions <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="content" name="content" rows="12" required 
+                                placeholder="Type or paste your questions here...">{% if request.method == 'POST' %}{{ request.form.get('content', '') }}{% endif %}</textarea>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary">Save Draft</button>
+                            <button type="submit" name="action" value="submit" class="btn btn-primary" onclick="return confirm('Are you sure you want to submit? You will not be able to edit this section after submission.');">Encrypt and Submit</button>
+                        </div>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                Section Details
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th class="ps-0">Status</th>
+                        <td><span class="badge bg-secondary">{{ section.status }}</span></td>
+                    </tr>
+                    <tr>
+                        <th class="ps-0">Order</th>
+                        <td>Part {{ section.section_order }}</td>
+                    </tr>
+                    <tr>
+                        <th class="ps-0">Exam Date</th>
+                        <td>{{ section.paper.exam_date }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <div class="card border-info">
+            <div class="card-header bg-info text-dark">
+                Security Assurance
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">When you submit this form:</p>
+                <ul class="small ps-3 mb-0">
+                    <li>Content is encrypted with <strong>AES-256-GCM</strong></li>
+                    <li>A unique cryptographic nonce is generated</li>
+                    <li>A <strong>SHA-256</strong> hash is computed for integrity</li>
+                    <li>Only the ciphertext is persisted to the database</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

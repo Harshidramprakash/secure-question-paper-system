@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}MFA Verification{% endblock %}
+
+{% block fullpage %}
+<div class="login-wrapper">
+    <div class="login-card">
+        <div class="logo-section">
+            <div class="mfa-info">
+                <div class="mfa-icon">🔑</div>
+                <h1>Two-Factor Authentication</h1>
+                <p class="login-subtitle" style="margin-top: 8px;">
+                    Enter the 6-digit code from your authenticator app
+                </p>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('auth.mfa_verify') }}" id="mfa-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label class="form-label" for="otp_code">Verification Code</label>
+                <input type="text" id="otp_code" name="otp_code"
+                       class="form-control otp-input"
+                       placeholder="000000"
+                       maxlength="6" pattern="[0-9]{6}"
+                       inputmode="numeric" autocomplete="one-time-code"
+                       required autofocus>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="mfa-btn">
+                ✓ Verify
+            </button>
+        </form>
+
+        <div style="margin-top: 16px; text-align: center;">
+            <a href="{{ url_for('auth.logout') }}" style="font-size: 13px; color: var(--text-muted);">
+                ← Cancel and sign out
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

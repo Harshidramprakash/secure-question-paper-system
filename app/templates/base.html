@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Secure Multi-Party Question Paper Assembly and Controlled Release System">
+    <title>{% block title %}SQPAS{% endblock %} — Secure Question Paper Assembly</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% if current_user.is_authenticated and session.get('mfa_verified', False) %}
+    <!-- Mobile sidebar toggle -->
+    <button class="mobile-toggle" aria-label="Toggle navigation">☰</button>
+
+    <div class="app-wrapper">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <div class="logo-icon">🛡</div>
+                    <div>
+                        <div class="logo-text">SQPAS</div>
+                        <div class="logo-subtitle">Secure Paper Assembly</div>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">Navigation</div>
+                <a href="{{ url_for('dashboard.home') }}" class="nav-item">
+                    <span class="nav-icon">📊</span> Dashboard
+                </a>
+
+                {% if current_user.is_setter %}
+                <div class="nav-section-title">Setter</div>
+                <a href="{{ url_for('setter.my_sections') if 'setter.my_sections' | has_endpoint else '#' }}" class="nav-item">
+                    <span class="nav-icon">📝</span> My Sections
+                </a>
+                {% endif %}
+
+                {% if current_user.is_admin %}
+                <div class="nav-section-title">Administration</div>
+                <a href="{{ url_for('admin.papers') if 'admin.papers' | has_endpoint else '#' }}" class="nav-item">
+                    <span class="nav-icon">📋</span> Question Papers
+                </a>
+                <a href="{{ url_for('admin.reviews') if 'admin.reviews' | has_endpoint else '#' }}" class="nav-item">
+                    <span class="nav-icon">✅</span> Review Sections
+                </a>
+                <a href="{{ url_for('audit.logs') if 'audit.logs' | has_endpoint else '#' }}" class="nav-item">
+                    <span class="nav-icon">📜</span> Audit Logs
+                </a>
+                {% endif %}
+
+                {% if current_user.is_officer %}
+                <div class="nav-section-title">Examination</div>
+                <!-- Removed release panel link as it requires a specific paper_id -->
+                <!-- Removed exam portal link as it requires a specific paper_id -->
+                {% endif %}
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">{{ current_user.username[0] | upper }}</div>
+                    <div class="user-details">
+                        <div class="user-name">{{ current_user.username }}</div>
+                        <div class="user-role">{{ current_user.role_display }}</div>
+                    </div>
+                </div>
+                <a href="{{ url_for('auth.logout') }}" class="nav-item" style="margin-top: 8px; padding-left: 0;">
+                    <span class="nav-icon">🚪</span> Logout
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% else %}
+    <!-- Unauthenticated / MFA-pending layout -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div style="position: fixed; top: 16px; right: 16px; z-index: 1000; max-width: 400px;">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    {% block fullpage %}{% endblock %}
+    {% endif %}
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

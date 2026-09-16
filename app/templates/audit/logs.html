@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Audit Logs{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="flex-between">
+        <div>
+            <h1>📜 Security Audit Dashboard</h1>
+            <p class="subtitle">Monitor system activity and security events</p>
+        </div>
+        <span class="security-indicator secure">
+            <span class="pulse"></span>
+            Monitoring Active
+        </span>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="card-grid">
+    <div class="stat-card">
+        <div class="stat-icon blue">📊</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ total_events }}</div>
+            <div class="stat-label">Total Audit Events</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon red">⚠️</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ failed_auth }}</div>
+            <div class="stat-label">Failed Auth Attempts</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon purple">🛡️</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ recent_security_events | length }}</div>
+            <div class="stat-label">Recent Blocked Actions</div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title m-0">Filter Logs</h3>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('audit.logs') }}" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label for="action" class="form-label">Action</label>
+                <select name="action" id="action" class="form-select">
+                    <option value="">All Actions</option>
+                    {% for act in actions %}
+                    <option value="{{ act }}" {% if request.args.get('action') == act %}selected{% endif %}>{{ act }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="status" class="form-label">Status</label>
+                <select name="status" id="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    {% for st in statuses %}
+                    <option value="{{ st }}" {% if request.args.get('status') == st %}selected{% endif %}>{{ st }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" name="username" id="username" class="form-control" placeholder="Search by username..." value="{{ request.args.get('username', '') }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title m-0">Event Log</h2>
+    </div>
+    <div class="table-container">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th>Timestamp (UTC)</th>
+                    <th>User / IP</th>
+                    <th>Action</th>
+                    <th>Resource</th>
+                    <th>Status</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in pagination.items %}
+                <tr>
+                    <td class="text-nowrap">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>
+                        <div><strong>{{ log.user.username if log.user else 'System/Anonymous' }}</strong></div>
+                        <small class="text-muted">{{ log.ip_address or 'Unknown IP' }}</small>
+                    </td>
+                    <td><span class="badge bg-secondary">{{ log.action }}</span></td>
+                    <td>
+                        {% if log.resource_type %}
+                            {{ log.resource_type|title }} #{{ log.resource_id or 'N/A' }}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if log.status == 'SUCCESS' %}
+                            <span class="badge bg-success">Success</span>
+                        {% elif log.status == 'FAILURE' %}
+                            <span class="badge bg-danger">Failure</span>
+                        {% elif log.status == 'BLOCKED' %}
+                            <span class="badge bg-warning text-dark">Blocked</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ log.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ log.details }}">
+                        {{ log.details or '-' }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">No audit logs found matching criteria.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if pagination.pages > 1 %}
+    <div class="card-footer bg-white border-top-0 pt-3">
+        <nav aria-label="Audit log navigation">
+            <ul class="pagination justify-content-center mb-0">
+                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('audit.logs', page=pagination.prev_num, action=request.args.get('action'), status=request.args.get('status'), username=request.args.get('username')) }}">Previous</a>
+                </li>
+                {% for p in pagination.iter_pages(left_edge=1, left_current=2, right_current=3, right_edge=1) %}
+                    {% if p %}
+                        <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('audit.logs', page=p, action=request.args.get('action'), status=request.args.get('status'), username=request.args.get('username')) }}">{{ p }}</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endfor %}
+                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('audit.logs', page=pagination.next_num, action=request.args.get('action'), status=request.args.get('status'), username=request.args.get('username')) }}">Next</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

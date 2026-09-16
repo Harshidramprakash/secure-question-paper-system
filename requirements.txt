@@ -1,0 +1,27 @@
+# Core Flask
+Flask>=3.0
+Flask-SQLAlchemy>=3.1
+Flask-Login>=0.6
+Flask-WTF>=1.2
+Werkzeug>=3.0
+python-dotenv>=1.0
+
+# Security & Encryption
+cryptography>=43.0
+pyotp>=2.9
+qrcode[pil]>=7.4
+
+# Database drivers
+# psycopg2-binary is used for PostgreSQL on AWS RDS.
+# For local development, SQLite is used (no extra driver needed).
+psycopg2-binary>=2.9
+
+# Production WSGI server
+gunicorn>=22.0
+
+# AWS SDK (optional — only needed when using KMS for key management)
+# Uncomment if deploying with KMS envelope encryption:
+# boto3>=1.28
+
+# Testing
+pytest>=8.0

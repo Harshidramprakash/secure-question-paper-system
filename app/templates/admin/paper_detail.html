@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Paper Details{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2 class="section-title">Paper Details: {{ paper.title }}</h2>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('admin.papers') }}" class="btn btn-secondary">Back to Papers</a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Paper Info -->
+    <div class="col-md-5">
+        <div class="card mb-4">
+            <div class="card-header">
+                General Information
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tbody>
+                        <tr>
+                            <th class="ps-0" style="width: 40%">ID</th>
+                            <td>{{ paper.id }}</td>
+                        </tr>
+                        <tr>
+                            <th class="ps-0">Status</th>
+                            <td><span class="badge bg-secondary">{{ paper.status }}</span></td>
+                        </tr>
+                        <tr>
+                            <th class="ps-0">Exam Date</th>
+                            <td>{{ paper.exam_date }}</td>
+                        </tr>
+                        <tr>
+                            <th class="ps-0">Release Time</th>
+                            <td>{{ paper.release_time.strftime('%Y-%m-%d %H:%M:%S UTC') if paper.release_time else 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="ps-0">Description</th>
+                            <td>{{ paper.description or 'No description provided.' }}</td>
+                        </tr>
+                        <tr>
+                            <th class="ps-0">Created At</th>
+                            <td>{{ paper.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sections Info -->
+    <div class="col-md-7">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Sections & Assignments</span>
+            </div>
+            <div class="card-body">
+                {% if paper.sections %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Order</th>
+                                    <th>Section Name</th>
+                                    <th>Setter</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for section in paper.sections|sort(attribute='section_order') %}
+                                <tr>
+                                    <td>{{ section.section_order }}</td>
+                                    <td>{{ section.section_name }}</td>
+                                    <td>{{ section.setter.username }}</td>
+                                    <td>
+                                        {% set badge_class = 'bg-secondary' %}
+                                        {% if section.status == 'SUBMITTED' %}
+                                            {% set badge_class = 'bg-primary' %}
+                                        {% elif section.status == 'APPROVED' %}
+                                            {% set badge_class = 'bg-success' %}
+                                        {% elif section.status == 'REJECTED' %}
+                                            {% set badge_class = 'bg-danger' %}
+                                        {% endif %}
+                                        <span class="badge {{ badge_class }}">{{ section.status }}</span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('admin.review_section', section_id=section.id) }}" class="btn btn-sm btn-outline-info">
+                                            {% if section.status in ['SUBMITTED', 'APPROVED'] %}Review{% else %}View Status{% endif %}
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No sections found for this paper.</p>
+                {% endif %}
+            </div>
+            {% if paper.all_sections_approved and paper.status not in ('READY_FOR_RELEASE', 'RELEASED') %}
+            <div class="card-footer bg-light border-success">
+                <form method="POST" action="{{ url_for('admin.trigger_assembly', paper_id=paper.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-lock"></i> Assemble Question Paper
+                        </button>
+                    </div>
+                </form>
+                <small class="text-muted d-block mt-2 text-center">
+                    This action will verify hashes, securely decrypt sections in memory, combine them, and re-encrypt the complete paper.
+                </small>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

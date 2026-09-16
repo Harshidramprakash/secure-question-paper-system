@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="flex-between">
+        <div>
+            <h1>🛡 Administration Dashboard</h1>
+            <p class="subtitle">Manage examination papers, sections, and approvals</p>
+        </div>
+        <span class="security-indicator secure">
+            <span class="pulse"></span>
+            Multi-Party Assembly Active
+        </span>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="card-grid">
+    <div class="stat-card">
+        <div class="stat-icon blue">📋</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ papers | length }}</div>
+            <div class="stat-label">Question Papers</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon amber">⏳</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ pending_sections | length }}</div>
+            <div class="stat-label">Pending Reviews</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green">✅</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ papers | selectattr('status', 'equalto', 'RELEASED') | list | length }}</div>
+            <div class="stat-label">Released Papers</div>
+        </div>
+    </div>
+</div>
+
+<!-- Question Papers -->
+<div class="card mb-lg">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h2 class="card-title m-0">Question Papers</h2>
+        <div>
+            <a href="{{ url_for('admin.papers') }}" class="btn btn-sm btn-outline-info me-2">Manage All</a>
+            <a href="{{ url_for('admin.create_paper') }}" class="btn btn-sm btn-primary">+ New Paper</a>
+        </div>
+    </div>
+
+    {% if papers %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Exam Date</th>
+                    <th>Status</th>
+                    <th>Sections</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for paper in papers %}
+                <tr>
+                    <td>#{{ paper.id }}</td>
+                    <td><strong>{{ paper.title }}</strong></td>
+                    <td>{{ paper.exam_date.strftime('%Y-%m-%d') }}</td>
+                    <td><span class="badge badge-{{ paper.status | lower | replace('_', '-') }}">{{ paper.status }}</span></td>
+                    <td>{{ paper.approved_sections }}/{{ paper.total_sections }}</td>
+                    <td>
+                        <a href="{{ url_for('admin.paper_detail', paper_id=paper.id) }}" class="btn btn-sm btn-outline">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state p-5 text-center">
+        <div class="empty-icon fs-1 mb-3">📭</div>
+        <p class="text-muted">No question papers created yet.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Pending Reviews -->
+{% if pending_sections %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">⏳ Pending Section Reviews</h2>
+    </div>
+    {% for section in pending_sections %}
+    <div class="section-item border-bottom p-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="section-info">
+                <h3 class="h5 mb-1">{{ section.section_name }}</h3>
+                <div class="section-meta text-muted small">
+                    Paper: {{ section.paper.title }} &middot;
+                    Setter: {{ section.setter.username }} &middot;
+                    Submitted: {{ section.submitted_at.strftime('%Y-%m-%d %H:%M') if section.submitted_at else 'N/A' }}
+                </div>
+            </div>
+            <div class="btn-group">
+                <span class="badge badge-submitted me-3 align-self-center">SUBMITTED</span>
+                <a href="{{ url_for('admin.review_section', section_id=section.id) }}" class="btn btn-sm btn-primary">Review</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
