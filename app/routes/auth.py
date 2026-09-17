@@ -106,43 +106,68 @@ def login():
 @auth_bp.route('/mfa', methods=['GET', 'POST'])
 @login_required
 def mfa_verify():
-    """Verify TOTP code after successful password login."""
-    # If MFA is not enabled or already verified, redirect
+    """Verify TOTP code or recovery code after successful password login."""
     if not current_user.mfa_enabled or session.get('mfa_verified'):
         return redirect(url_for('dashboard.index'))
 
     if request.method == 'POST':
-        otp_code = request.form.get('otp_code', '').replace(' ', '').strip()
+        otp_code = request.form.get('otp_code', '').replace(' ', '').strip().upper()
 
-        if not otp_code or not otp_code.isdigit():
-            flash('Please enter a valid numeric verification code.', 'error')
+        if not otp_code:
+            flash('Please enter a verification code.', 'error')
             return render_template('auth/mfa_verify.html'), 400
 
-        # Verify the TOTP code
-        totp = pyotp.TOTP(current_user.mfa_secret)
-        if totp.verify(otp_code, valid_window=1):
-            session['mfa_verified'] = True
-            log_event(
-                user_id=current_user.id,
-                action='MFA_SUCCESS',
-                resource_type='user',
-                resource_id=current_user.id,
-                status='SUCCESS',
-                details='TOTP verification successful',
-            )
-            flash(f'Welcome, {current_user.username}!', 'success')
-            return redirect(url_for('dashboard.index'))
-        else:
-            log_event(
-                user_id=current_user.id,
-                action='MFA_FAILURE',
-                resource_type='user',
-                resource_id=current_user.id,
-                status='FAILURE',
-                details='Invalid TOTP code',
-            )
-            flash('Invalid verification code. Please try again.', 'error')
-            return render_template('auth/mfa_verify.html'), 401
+        # Try TOTP verification if it's all digits
+        if otp_code.isdigit():
+            totp = pyotp.TOTP(current_user.mfa_secret)
+            if totp.verify(otp_code, valid_window=1):
+                session['mfa_verified'] = True
+                log_event(
+                    user_id=current_user.id,
+                    action='MFA_SUCCESS',
+                    resource_type='user',
+                    resource_id=current_user.id,
+                    status='SUCCESS',
+                    details='TOTP verification successful'
+                )
+                flash(f'Welcome, {current_user.username}!', 'success')
+                return redirect(url_for('dashboard.index'))
+
+        # Fallback to recovery code check
+        from werkzeug.security import check_password_hash
+        from ..models.recovery_code import RecoveryCode
+        
+        # Check against all recovery codes for this user
+        recovery_codes = RecoveryCode.query.filter_by(user_id=current_user.id).all()
+        for rc in recovery_codes:
+            if check_password_hash(rc.code_hash, otp_code):
+                # Valid recovery code: log them in and delete the code (single use)
+                db.session.delete(rc)
+                db.session.commit()
+                
+                session['mfa_verified'] = True
+                log_event(
+                    user_id=current_user.id,
+                    action='MFA_SUCCESS',
+                    resource_type='user',
+                    resource_id=current_user.id,
+                    status='SUCCESS',
+                    details='Recovery code verification successful'
+                )
+                flash(f'Welcome, {current_user.username}! A recovery code was consumed.', 'success')
+                return redirect(url_for('dashboard.index'))
+                
+        # If both fail
+        log_event(
+            user_id=current_user.id,
+            action='MFA_FAILURE',
+            resource_type='user',
+            resource_id=current_user.id,
+            status='FAILURE',
+            details='Invalid TOTP or recovery code'
+        )
+        flash('Invalid verification code. Please try again.', 'error')
+        return render_template('auth/mfa_verify.html'), 401
 
     return render_template('auth/mfa_verify.html')
 
@@ -165,3 +190,48 @@ def logout():
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('auth.login'))
+
+
+@auth_bp.route('/mfa/view', methods=['GET', 'POST'])
+@login_required
+def mfa_view():
+    """View the MFA QR code. Requires re-authenticating with password."""
+    # Ensure they are fully logged in (MFA verified) if MFA is enabled
+    if current_user.mfa_enabled and not session.get('mfa_verified'):
+        return redirect(url_for('auth.mfa_verify'))
+
+    qr_b64 = None
+    
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        
+        if not password:
+            flash('Please enter your password.', 'error')
+        elif not current_user.check_password(password):
+            flash('Incorrect password.', 'error')
+            log_event(
+                user_id=current_user.id,
+                action='MFA_VIEW_FAILURE',
+                resource_type='user',
+                resource_id=current_user.id,
+                status='FAILURE',
+                details='Failed password verification to view MFA setup'
+            )
+        else:
+            # Correct password, render QR code
+            if current_user.mfa_secret:
+                from ..services.mfa import generate_mfa_qr_b64
+                qr_b64 = generate_mfa_qr_b64(current_user, current_user.mfa_secret)
+                
+                log_event(
+                    user_id=current_user.id,
+                    action='MFA_VIEW_SUCCESS',
+                    resource_type='user',
+                    resource_id=current_user.id,
+                    status='SUCCESS',
+                    details='Successfully viewed MFA setup'
+                )
+            else:
+                flash('MFA is not set up for your account.', 'warning')
+
+    return render_template('auth/mfa_view.html', qr_b64=qr_b64)

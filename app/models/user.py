@@ -44,6 +44,9 @@ class User(UserMixin, db.Model):
     audit_logs = db.relationship(
         'AuditLog', back_populates='user', lazy='dynamic'
     )
+    recovery_codes = db.relationship(
+        'RecoveryCode', back_populates='user', lazy='dynamic', cascade='all, delete-orphan'
+    )
 
     def set_password(self, password):
         """Hash and store a password. Never stores plaintext."""

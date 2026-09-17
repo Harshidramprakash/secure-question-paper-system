@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Regenerate MFA for {{ target_user.username }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0">Regenerate MFA for {{ target_user.username }}</h4>
+            </div>
+            <div class="card-body">
+                <p>You are about to regenerate the Multi-Factor Authentication (MFA) secret and recovery codes for <strong>{{ target_user.username }}</strong>.</p>
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> This will immediately invalidate their current Authenticator app setup and their existing recovery codes.
+                </div>
+                
+                <p>Please enter your <strong>own admin password</strong> to authorize this action.</p>
+                <form method="POST" action="{{ url_for('admin.regenerate_mfa', user_id=target_user.id) }}">
+                    <div class="mb-3">
+                        <label for="admin_password" class="form-label">Admin Password</label>
+                        <input type="password" class="form-control" id="admin_password" name="admin_password" required autofocus>
+                    </div>
+                    <button type="submit" class="btn btn-danger w-100">Confirm & Regenerate</button>
+                    <a href="{{ url_for('dashboard.index') }}" class="btn btn-link w-100 mt-2">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

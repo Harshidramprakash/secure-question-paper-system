@@ -20,12 +20,12 @@ from app.extensions import db
 from app.models.user import User
 
 
-# Demo roles to seed
+# Demo roles to seed with specified passwords
 DEMO_ROLES = [
-    ('setter_a', User.ROLE_SETTER_A),
-    ('setter_b', User.ROLE_SETTER_B),
-    ('admin', User.ROLE_ADMIN),
-    ('officer', User.ROLE_OFFICER),
+    ('admin', User.ROLE_ADMIN, 'admin@123'),
+    ('officer', User.ROLE_OFFICER, 'officer@123'),
+    ('setter_a', User.ROLE_SETTER_A, 'setter@123'),
+    ('setter_b', User.ROLE_SETTER_B, 'setterb@123'),
 ]
 
 
@@ -47,9 +47,7 @@ def seed_database():
         credentials_output.append(f'  {"Username":<12} {"Password":<16} {"Role":<22} {"MFA Secret"}')
         credentials_output.append('=' * 70)
 
-        for username, role in DEMO_ROLES:
-            # Use a simple password for development
-            password = 'password'
+        for username, role, password in DEMO_ROLES:
             
             # Generate a TOTP secret for MFA
             mfa_secret = pyotp.random_base32()

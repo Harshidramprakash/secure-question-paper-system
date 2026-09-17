@@ -155,7 +155,7 @@ class TestMFA:
         assert b'Dashboard' in resp.data or b'Welcome' in resp.data
 
     def test_mfa_invalid_totp_format_rejected(self, client, mfa_admin):
-        """Non-numeric TOTP code should be rejected safely."""
+        """Invalid format (non-matching recovery code and non-numeric TOTP) should be rejected safely."""
         client.post('/auth/login', data={
             'username': 'mfa_admin',
             'password': 'Admin@123',
@@ -163,8 +163,8 @@ class TestMFA:
         resp = client.post('/auth/mfa', data={
             'otp_code': 'ABC DEF',
         })
-        assert resp.status_code == 400
-        assert b'valid numeric verification code' in resp.data
+        assert resp.status_code == 401
+        assert b'Invalid verification code' in resp.data
 
     def test_mfa_audit_logged(self, client, mfa_admin):
         """MFA success and failure should be audit logged."""

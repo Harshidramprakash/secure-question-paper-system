@@ -225,3 +225,54 @@ def trigger_assembly(paper_id):
         flash(f'Assembly Failed: {str(e)}', 'error')
         
     return redirect(url_for('admin.paper_detail', paper_id=paper_id))
+
+
+@admin_bp.route('/user/<int:user_id>/regenerate_mfa', methods=['GET', 'POST'])
+@login_required
+@login_and_mfa_required
+@role_required(User.ROLE_ADMIN)
+def regenerate_mfa(user_id):
+    """Regenerate MFA secret and recovery codes for a user."""
+    target_user = User.query.get_or_404(user_id)
+    
+    if request.method == 'POST':
+        admin_password = request.form.get('admin_password', '')
+        
+        if not admin_password or not current_user.check_password(admin_password):
+            flash('Incorrect admin password. Authorization failed.', 'error')
+            log_event(
+                user_id=current_user.id,
+                action='ADMIN_MFA_REGEN_FAILURE',
+                resource_type='user',
+                resource_id=target_user.id,
+                status='FAILURE',
+                details='Failed admin password verification during MFA regeneration'
+            )
+            return render_template('admin/regenerate_mfa.html', target_user=target_user), 401
+            
+        import pyotp
+        from ..services.mfa import generate_mfa_qr_b64, generate_recovery_codes
+        
+        # Invalidate old secret and create a new one
+        new_secret = pyotp.random_base32()
+        target_user.mfa_secret = new_secret
+        target_user.mfa_enabled = True
+        
+        # Generate new recovery codes
+        new_recovery_codes = generate_recovery_codes(target_user.id)
+        db.session.commit()
+        
+        qr_b64 = generate_mfa_qr_b64(target_user, new_secret)
+        
+        log_event(
+            user_id=current_user.id,
+            action='ADMIN_MFA_REGEN_SUCCESS',
+            resource_type='user',
+            resource_id=target_user.id,
+            status='SUCCESS',
+            details=f'MFA secret and recovery codes regenerated for {target_user.username}'
+        )
+        
+        return render_template('admin/mfa_regenerated.html', target_user=target_user, qr_b64=qr_b64, recovery_codes=new_recovery_codes)
+        
+    return render_template('admin/regenerate_mfa.html', target_user=target_user)

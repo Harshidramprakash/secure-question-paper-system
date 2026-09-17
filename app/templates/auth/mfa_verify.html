@@ -18,12 +18,11 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="form-group">
-                <label class="form-label" for="otp_code">Verification Code</label>
+                <label class="form-label" for="otp_code">Verification Code or Recovery Code</label>
                 <input type="text" id="otp_code" name="otp_code"
                        class="form-control otp-input"
-                       placeholder="000000"
-                       maxlength="6" pattern="[0-9]{6}"
-                       inputmode="numeric" autocomplete="one-time-code"
+                       placeholder="123456 or XXXX-XXXX"
+                       autocomplete="off"
                        required autofocus>
             </div>
 

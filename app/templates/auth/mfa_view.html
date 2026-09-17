@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}View MFA Setup{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">View MFA Setup</h4>
+            </div>
+            <div class="card-body">
+                {% if not qr_b64 %}
+                <p>Please re-enter your password to view your Multi-Factor Authentication (MFA) setup QR code.</p>
+                <form method="POST" action="{{ url_for('auth.mfa_view') }}">
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required autofocus>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Verify & View</button>
+                    <a href="{{ url_for('dashboard.index') }}" class="btn btn-link w-100 mt-2">Cancel</a>
+                </form>
+                {% else %}
+                <div class="text-center">
+                    <h5>Your MFA QR Code</h5>
+                    <p class="text-muted">Scan this code with your Authenticator app.</p>
+                    <img src="data:image/png;base64,{{ qr_b64 }}" alt="MFA QR Code" class="img-fluid mb-3">
+                    
+                    <div class="alert alert-warning">
+                        <strong>Important:</strong> Keep this QR code private. Do not share it with anyone.
+                    </div>
+                    <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary">Return to Dashboard</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
