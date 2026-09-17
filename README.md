@@ -284,3 +284,8 @@ The project includes automated tests for application functionality and security-
 Run the test suite using:
 
 pytest -q
+
+
+output:
+login page: ![](image.png)
+![alt text](image-1.png)
