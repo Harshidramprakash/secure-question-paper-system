@@ -139,9 +139,19 @@ def _fix_database_url(url):
 
     Some platforms (e.g. Heroku, older AWS docs) use 'postgres://' which
     SQLAlchemy 1.4+ no longer accepts. Rewrite to 'postgresql://'.
+    Also handle 'postgresql+psycopg://' which some PaaS providers inject.
     """
-    if url and url.startswith('postgres://'):
+    if not url:
+        return url
+        
+    # Strip accidental surrounding whitespace or quotes
+    url = url.strip().strip('\'"')
+    
+    if url.startswith('postgres://'):
         url = url.replace('postgres://', 'postgresql://', 1)
+    elif url.startswith('postgresql+psycopg://'):
+        url = url.replace('postgresql+psycopg://', 'postgresql://', 1)
+        
     return url
 
 
