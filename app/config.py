@@ -108,11 +108,27 @@ class ProductionConfig(BaseConfig):
             )
 
         db_url = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        
+        import logging
+        from sqlalchemy.engine import make_url
+        logger = logging.getLogger(__name__)
+        
+        raw_env_url = os.environ.get('DATABASE_URL')
+        url_exists = raw_env_url is not None
+        
         if not db_url or db_url.startswith('sqlite:'):
             errors.append(
                 'DATABASE_URL is not set or is using SQLite. '
                 'Set DATABASE_URL to a PostgreSQL connection string for production (e.g. Neon).'
             )
+        else:
+            try:
+                parsed_url = make_url(db_url)
+                logger.info(f"Database configuration diagnostic: exists={url_exists}, scheme={parsed_url.drivername}, parses=True")
+            except Exception as e:
+                # We do not print the exception directly if it contains the URL, just in case
+                logger.error(f"Database configuration diagnostic: exists={url_exists}, parses=False")
+                errors.append("DATABASE_URL is not a valid SQLAlchemy URL. Could not parse it safely.")
 
         enc_key = app.config.get('ENCRYPTION_KEY')
         if not enc_key:
