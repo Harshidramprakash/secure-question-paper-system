@@ -62,3 +62,23 @@ This application is configured for easy deployment on Render:
 
 ### AWS EC2 Deployment
 Please see [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) for detailed instructions on deploying this application safely to AWS EC2 using Gunicorn, Nginx, and PostgreSQL.
+
+## Live Deployment
+
+Application URL: https://secure-question-paper-system.onrender.com/auth/login
+
+## Demo Accounts
+
+| Username | Role |
+|---|---|
+| `admin` | Administrator |
+| `officer` | Examination Officer |
+| `setter_a` | Question Setter A |
+| `setter_b` | Question Setter B |
+
+> Demo passwords and MFA setup details are stored locally in
+> `.demo_credentials.txt`. This file is ignored by Git and must never
+> be committed or shared publicly.
+
+> These credentials are for demonstration only. Change them before
+> using the system in a real examination environment.
