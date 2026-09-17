@@ -1,6 +1,7 @@
 """Authorization decorators for role-based access control."""
 from functools import wraps
 from flask import abort, flash, redirect, url_for
+# pyrefly: ignore [missing-import]
 from flask_login import current_user
 
 

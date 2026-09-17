@@ -2,8 +2,11 @@
 
 Created here to avoid circular imports — initialized in the app factory.
 """
+# pyrefly: ignore [missing-import]
 from flask_sqlalchemy import SQLAlchemy
+# pyrefly: ignore [missing-import]
 from flask_login import LoginManager
+# pyrefly: ignore [missing-import]
 from flask_wtf.csrf import CSRFProtect
 
 db = SQLAlchemy()

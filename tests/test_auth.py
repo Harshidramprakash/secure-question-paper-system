@@ -138,6 +138,34 @@ class TestMFA:
         })
         assert resp.status_code == 401
 
+    def test_mfa_code_with_spaces_accepted(self, client, mfa_admin):
+        """Valid TOTP code with spaces should be accepted (copy-paste resilience)."""
+        client.post('/auth/login', data={
+            'username': 'mfa_admin',
+            'password': 'Admin@123',
+        })
+        totp = pyotp.TOTP(mfa_admin.mfa_secret)
+        code = totp.now()
+        # Add a space in the middle to simulate common user input formatting
+        spaced_code = f"{code[:3]} {code[3:]}"
+        resp = client.post('/auth/mfa', data={
+            'otp_code': spaced_code,
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        assert b'Dashboard' in resp.data or b'Welcome' in resp.data
+
+    def test_mfa_invalid_totp_format_rejected(self, client, mfa_admin):
+        """Non-numeric TOTP code should be rejected safely."""
+        client.post('/auth/login', data={
+            'username': 'mfa_admin',
+            'password': 'Admin@123',
+        })
+        resp = client.post('/auth/mfa', data={
+            'otp_code': 'ABC DEF',
+        })
+        assert resp.status_code == 400
+        assert b'valid numeric verification code' in resp.data
+
     def test_mfa_audit_logged(self, client, mfa_admin):
         """MFA success and failure should be audit logged."""
         # Login
@@ -172,3 +200,52 @@ class TestLogout:
         client.get('/auth/logout')
         log = AuditLog.query.filter_by(action='LOGOUT').first()
         assert log is not None
+
+
+class TestDevAuthBypass:
+    """Verify development-only MFA bypass behavior."""
+
+    def test_bypass_disabled_by_default(self, mfa_admin):
+        from app import create_app
+        import os
+        # Default testing environment config
+        app = create_app('testing')
+        assert app.config.get('DEV_AUTH_BYPASS') is False
+
+    def test_bypass_fails_fast_in_production(self):
+        """Production config should raise RuntimeError if bypass is enabled."""
+        from app import create_app
+        from app.config import ProductionConfig
+        import pytest
+        
+        # We initialize with testing config to safely get an app instance
+        app = create_app('testing')
+        
+        # Inject the unsafe bypass
+        app.config['DEV_AUTH_BYPASS'] = True
+        
+        # Now explicitly run the production validation hook
+        with pytest.raises(RuntimeError, match="DEV_AUTH_BYPASS must NEVER be enabled in production"):
+            ProductionConfig.init_app(app)
+
+    def test_bypass_works_only_in_development(self, client, mfa_admin, monkeypatch):
+        """Test that the bypass succeeds when configured correctly."""
+        from flask import session
+        
+        # We can simulate the dev environment on our test client app.
+        client.application.config['DEV_AUTH_BYPASS'] = True
+        client.application.config['DEBUG'] = True
+        client.application.config['TESTING'] = False  # pretend to be dev
+
+        resp = client.post('/auth/login', data={
+            'username': 'mfa_admin',
+            'password': 'Admin@123',
+        }, follow_redirects=True)
+        
+        assert resp.status_code == 200
+        assert b'Development MFA bypass active' in resp.data
+
+        # Restore
+        client.application.config['TESTING'] = True
+        client.application.config['DEBUG'] = True
+        client.application.config['DEV_AUTH_BYPASS'] = False

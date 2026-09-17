@@ -12,6 +12,11 @@ import logging
 from flask import Flask
 from dotenv import load_dotenv
 
+# Resolve project root and load .env before importing config
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+_env_path = os.path.join(_project_root, '.env')
+load_dotenv(_env_path)
+
 from .config import config_map
 from .extensions import db, login_manager, csrf
 from .logging_config import configure_logging
@@ -26,11 +31,12 @@ def create_app(config_name=None):
         config_name: One of 'development', 'testing', 'staging', 'production'.
                      Defaults to FLASK_ENV or 'development'.
     """
-    # Load .env file if it exists
-    load_dotenv()
 
     if config_name is None:
-        config_name = os.environ.get('FLASK_ENV', 'development')
+        if os.environ.get('RENDER', '').lower() in ('true', '1', 'yes'):
+            config_name = 'production'
+        else:
+            config_name = os.environ.get('FLASK_ENV', 'development')
 
     app = Flask(
         __name__,
@@ -102,6 +108,11 @@ def create_app(config_name=None):
         config_name,
         app.debug,
     )
+
+    @app.route('/health')
+    def health_check():
+        """Safe health check endpoint for deployment monitoring."""
+        return {'status': 'healthy', 'environment': config_name}, 200
 
     return app
 

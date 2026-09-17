@@ -1,5 +1,7 @@
 """Pytest fixtures for the SQPAS test suite."""
+# pyrefly: ignore [missing-import]
 import pytest
+# pyrefly: ignore [missing-import]
 import pyotp
 
 from app import create_app

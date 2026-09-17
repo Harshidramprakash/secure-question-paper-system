@@ -1,5 +1,6 @@
 """Dashboard routes — role-based landing pages."""
 from flask import Blueprint, render_template, redirect, url_for
+# pyrefly: ignore [missing-import]
 from flask_login import login_required, current_user
 
 from ..decorators import role_required, login_and_mfa_required

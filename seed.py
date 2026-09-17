@@ -48,8 +48,8 @@ def seed_database():
         credentials_output.append('=' * 70)
 
         for username, role in DEMO_ROLES:
-            # Generate a secure random password
-            password = secrets.token_urlsafe(12)
+            # Use a simple password for development
+            password = 'password'
             
             # Generate a TOTP secret for MFA
             mfa_secret = pyotp.random_base32()
@@ -88,7 +88,13 @@ def seed_database():
         print(f'[!] Demo credentials and MFA secrets have been written to:')
         print(f'    {cred_file}')
         print('[!] WARNING: Read this file to get your access details, then DELETE IT securely.')
-        print(f'[i] SQLite database location: {app.instance_path}/app.db')
+        
+        db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        if db_uri and db_uri.startswith('sqlite:'):
+            print(f'[i] SQLite database location: {app.instance_path}/app.db')
+        else:
+            print('[i] PostgreSQL database is configured and seeded.')
+            
         print('[i] Run the app with: python run.py')
         print()
 

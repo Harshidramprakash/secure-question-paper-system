@@ -19,8 +19,17 @@ This is the SQPAS Flask application. It implements role-based access control, AE
    pip install -r requirements.txt
    ```
 
-2. **Configure environment**:
-   Copy `.env.example` to `.env` and fill in the required `SECRET_KEY` and `ENCRYPTION_KEY`.
+2. **Database Setup (Neon PostgreSQL)**:
+   This application strictly requires a PostgreSQL database.
+   - Create a free database on [Neon](https://neon.tech).
+   - Get the connection string (it will look like `postgresql://USER:PASSWORD@HOST/DB?sslmode=require&channel_binding=require`).
+
+3. **Configure environment**:
+   Copy `.env.example` to `.env`.
+   - Fill in `SECRET_KEY` and `ENCRYPTION_KEY`.
+   - Paste the Neon connection string as `DATABASE_URL`.
+   - **Never commit `.env` to version control.** It contains your database credentials and encryption keys.
+   - If deploying to Render or another host, add `DATABASE_URL` as a secret environment variable in their dashboard.
 
 3. **Initialize the database (Demo Setup)**:
    To create the necessary database tables and generate demo users, run the seed script:

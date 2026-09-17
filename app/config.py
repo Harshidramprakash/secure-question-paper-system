@@ -14,8 +14,8 @@ class BaseConfig:
     # --- Flask core ---
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
-    # --- Database (SQLite default for local development) ---
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///app.db')
+    # --- Database (Neon PostgreSQL) ---
+    SQLALCHEMY_DATABASE_URI = None  # Must be set by environment
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # --- Session security ---
@@ -38,6 +38,9 @@ class BaseConfig:
     # --- Proxy ---
     BEHIND_PROXY = os.environ.get('BEHIND_PROXY', '').lower() in ('true', '1', 'yes')
 
+    # --- Development Tools ---
+    DEV_AUTH_BYPASS = False
+
     @classmethod
     def init_app(cls, app):
         """Optional hook for environment-specific initialization."""
@@ -49,6 +52,12 @@ class DevelopmentConfig(BaseConfig):
     DEBUG = True
     SESSION_COOKIE_SECURE = False  # Allow HTTP in development
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'DEBUG')
+    DEV_AUTH_BYPASS = os.environ.get('DEV_AUTH_BYPASS', '').lower() in ('true', '1', 'yes')
+
+    @classmethod
+    def init_app(cls, app):
+        """Development environment supports both PostgreSQL and SQLite fallback."""
+        pass
 
 
 class TestingConfig(BaseConfig):
@@ -57,7 +66,7 @@ class TestingConfig(BaseConfig):
     DEBUG = True
     SESSION_COOKIE_SECURE = False
     WTF_CSRF_ENABLED = False  # Disable CSRF in tests for convenience
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL', 'sqlite:///:memory:')
     ENCRYPTION_KEY = 'a' * 64  # 32-byte test key (hex-encoded)
     SECRET_KEY = 'test-secret-key'
     LOG_LEVEL = 'WARNING'
@@ -88,6 +97,9 @@ class ProductionConfig(BaseConfig):
         """Validate that all required production secrets are configured."""
         errors = []
 
+        if app.config.get('DEV_AUTH_BYPASS'):
+            errors.append('DEV_AUTH_BYPASS must NEVER be enabled in production.')
+
         secret_key = app.config.get('SECRET_KEY', '')
         if not secret_key or secret_key == 'dev-secret-key-change-in-production':
             errors.append(
@@ -99,7 +111,7 @@ class ProductionConfig(BaseConfig):
         if not db_url or db_url.startswith('sqlite:'):
             errors.append(
                 'DATABASE_URL is not set or is using SQLite. '
-                'Set DATABASE_URL to a PostgreSQL connection string for production.'
+                'Set DATABASE_URL to a PostgreSQL connection string for production (e.g. Neon).'
             )
 
         enc_key = app.config.get('ENCRYPTION_KEY')
@@ -138,6 +150,9 @@ _raw_url = os.environ.get('DATABASE_URL', '')
 if _raw_url:
     _fixed_url = _fix_database_url(_raw_url)
     BaseConfig.SQLALCHEMY_DATABASE_URI = _fixed_url
+else:
+    # Intentional SQLite fallback when DATABASE_URL is absent
+    BaseConfig.SQLALCHEMY_DATABASE_URI = 'sqlite:///app.db'
 
 
 config_map = {

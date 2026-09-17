@@ -2,17 +2,8 @@
 
 **Secure Multi-Party Question Paper Assembly and Controlled Release System**
 
-This guide provides exact, safe instructions for deploying the SQPAS Flask application to an AWS EC2 instance (Ubuntu) using Gunicorn and Nginx.
-
----
-
-## Command Location Legend
-
-To prevent confusion, every step is marked with where the action should take place:
-
-- ☁️ **AWS Console**: Actions performed in your web browser at `console.aws.amazon.com`.
-- 💻 **Local Machine**: Commands run in your personal computer's terminal (Windows/Mac/Linux).
-- 🖥️ **EC2 Server**: Commands run in the terminal *after* you have SSH'd into the Ubuntu server.
+This guide covers deploying SQPAS to AWS using EC2 + PostgreSQL RDS + Nginx.  
+Each step is labeled **[DEMO REQUIRED]** or **[PRODUCTION HARDENING]**.
 
 ---
 
@@ -33,224 +24,461 @@ To prevent confusion, every step is marked with where the action should take pla
                                                                  └──────────────┘
 ```
 
+**AWS Services Used:**
+| Service | Purpose | Required? |
+|---------|---------|-----------|
+| EC2 (Ubuntu 22.04) | Application server | ✅ Yes |
+| RDS (PostgreSQL 15) | Production database | ✅ Yes |
+| CloudWatch Logs | Log aggregation | 📌 Recommended |
+| KMS | Encryption key management | 📌 Optional |
+| Elastic IP | Static public IP | 📌 Recommended |
+
 ---
 
-## Step 1: AWS Infrastructure Setup ☁️
+## Prerequisites
 
-1. **Log in**: ☁️ Open the **AWS Console**.
-2. **EC2 Instance**: ☁️ Navigate to EC2 and launch an instance:
+- AWS account (or college-provided AWS Academy account)
+- Basic familiarity with SSH and Linux terminal
+- The SQPAS GitHub repository URL
+
+---
+
+## Step 1: Create an AWS Account **[DEMO REQUIRED]**
+
+1. Go to https://aws.amazon.com and create an account (or use the college-provided AWS Academy/Learner Lab account).
+2. Sign in to the AWS Management Console.
+3. Select a region close to your location (e.g., `ap-south-1` for Mumbai, India).
+
+> ⚠️ **Cost Warning**: AWS resources incur charges. Always terminate resources when not in use. See Step 15 for cleanup instructions.
+
+---
+
+## Step 2: Create an EC2 Ubuntu Instance **[DEMO REQUIRED]**
+
+1. Go to **EC2 → Launch Instance**.
+2. Configure:
    - **Name**: `sqpas-server`
-   - **OS**: Ubuntu 22.04 LTS
-   - **Instance Type**: `t2.micro` or `t3.micro`
-   - **Key Pair**: Create a new key pair (e.g., `sqpas-key.pem`). 💻 Download it to your local machine.
-   - **Network**: Allow SSH traffic from "My IP", and allow HTTP/HTTPS traffic from anywhere.
-3. **RDS Database**: ☁️ Navigate to RDS and create a database:
-   - **Engine**: PostgreSQL 15 (Free Tier)
-   - **Identifier**: `sqpas-db`
-   - **Credentials**: Username `postgres`, auto-generate or set a strong password. Note this password securely!
-   - **Public Access**: No.
-   - **VPC Security Group**: Create new or use default, ensuring your EC2 instance's security group is allowed inbound access on port 5432.
-   - **Initial Database Name**: Expand "Additional configuration" and set "Initial database name" to `sqpas_db`.
+   - **AMI**: Ubuntu Server 22.04 LTS (64-bit, x86)
+   - **Instance type**: `t2.micro` (free tier eligible) or `t3.small` for better performance
+   - **Key pair**: Create a new key pair (download the `.pem` file — **keep it safe!**)
+   - **Storage**: 20 GB gp3
+3. Click **Launch Instance**.
+4. Note the **Public IPv4 address** or allocate an **Elastic IP** (recommended).
 
 ---
 
-## Step 2: Connect to the EC2 Server 💻
+## Step 3: Configure Security Group **[DEMO REQUIRED]**
 
-1. 💻 Open a terminal on your local machine.
-2. 💻 Restrict the permissions of your downloaded key file (Linux/Mac only):
-   ```bash
-   chmod 400 path/to/sqpas-key.pem
-   ```
-   *(On Windows, you may need to right-click the file -> Properties -> Security -> Advanced, disable inheritance, and remove all users except your current user).*
-3. 💻 SSH into the EC2 instance using its Public IPv4 address:
-   ```bash
-   ssh -i path/to/sqpas-key.pem ubuntu@<EC2-PUBLIC-IP>
-   ```
+Edit the security group attached to your EC2 instance:
 
----
+| Type | Port | Source | Purpose |
+|------|------|--------|---------|
+| SSH | 22 | Your IP only | Remote access |
+| HTTP | 80 | 0.0.0.0/0 | Web traffic |
+| HTTPS | 443 | 0.0.0.0/0 | Encrypted web traffic |
 
-## Step 3: Install System Dependencies 🖥️
-
-Run these commands on the Ubuntu server to prepare the environment.
-
-1. 🖥️ Update system packages:
-   ```bash
-   sudo apt update && sudo apt upgrade -y
-   ```
-2. 🖥️ Install Python, pip, virtual environment, Git, Nginx, and PostgreSQL client:
-   ```bash
-   sudo apt install -y python3 python3-pip python3-venv git nginx postgresql-client
-   ```
+**[PRODUCTION HARDENING]**: Remove SSH access from `0.0.0.0/0`. Use a bastion host or AWS Systems Manager Session Manager instead.
 
 ---
 
-## Step 4: Clone Repository and Setup Virtual Environment 🖥️
+## Step 4: Install Dependencies **[DEMO REQUIRED]**
 
-The application will reside in `/home/ubuntu/sqpas`.
+SSH into your EC2 instance:
 
-1. 🖥️ Clone the GitHub repository:
-   ```bash
-   cd /home/ubuntu
-   git clone <YOUR-GITHUB-REPO-URL> sqpas
-   cd sqpas
-   ```
-2. 🖥️ Create and activate the virtual environment:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-3. 🖥️ Install Python dependencies (including Gunicorn and psycopg2):
-   ```bash
-   pip install --upgrade pip
-   pip install -r requirements.txt
-   ```
-
----
-
-## Step 5: Configure Production Environment 🖥️
-
-1. 🖥️ Copy the `.env.example` file to create your `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-2. 🖥️ Generate two secure 32-byte keys for Flask and Encryption:
-   ```bash
-   python -c "import secrets; print(f'SECRET_KEY={secrets.token_hex(32)}\nENCRYPTION_KEY={secrets.token_hex(32)}')"
-   ```
-3. 🖥️ Open the `.env` file using the `nano` editor:
-   ```bash
-   nano .env
-   ```
-4. 🖥️ Update the following variables in `.env`:
-   - Paste the generated `SECRET_KEY` and `ENCRYPTION_KEY`.
-   - Set `FLASK_ENV=production`
-   - Set `BEHIND_PROXY=true`
-   - Set the `DATABASE_URL` using your RDS endpoint and password from Step 1:
-     `DATABASE_URL=postgresql://postgres:<RDS-PASSWORD>@<RDS-ENDPOINT>:5432/sqpas_db`
-   - Save and exit (Press `Ctrl+O`, `Enter`, then `Ctrl+X`).
-5. 🖥️ Secure the `.env` file so only the `ubuntu` user can read it:
-   ```bash
-   chmod 600 .env
-   ```
-
----
-
-## Step 6: Initialize and Seed the Database 🖥️
-
-1. 🖥️ Ensure your virtual environment is active (`source venv/bin/activate` if not).
-2. 🖥️ Run the seed script to create tables and demo users:
-   ```bash
-   python seed.py
-   ```
-   *Note: Save the demo credentials printed to the screen securely. Do not share them publicly.*
-
----
-
-## Step 7: Test Gunicorn Locally 🖥️
-
-1. 🖥️ Start the application using Gunicorn to verify it connects to the database and doesn't crash:
-   ```bash
-   gunicorn wsgi:app --config gunicorn.conf.py
-   ```
-2. 🖥️ Open a *second* terminal on your local machine, SSH into the EC2 instance again (Step 2), and test the local endpoint:
-   ```bash
-   curl -s http://127.0.0.1:8000/auth/login | grep "<title>"
-   ```
-   *You should see HTML output containing the SQPAS title. If successful, go back to the first terminal and stop Gunicorn with `Ctrl+C`.*
-
----
-
-## Step 8: Configure Systemd Service 🖥️
-
-To ensure the application runs in the background and restarts on reboot, we use `systemd`.
-
-1. 🖥️ Copy the provided service file to systemd:
-   ```bash
-   sudo cp deploy/sqpas.service /etc/systemd/system/
-   ```
-2. 🖥️ Reload systemd, enable the service on boot, and start it:
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable sqpas
-   sudo systemctl start sqpas
-   ```
-3. 🖥️ Verify it is running:
-   ```bash
-   sudo systemctl status sqpas
-   ```
-
----
-
-## Step 9: Configure Nginx Reverse Proxy 🖥️
-
-Nginx handles incoming HTTP/HTTPS traffic on port 80/443 and forwards it to Gunicorn on port 8000.
-
-1. 🖥️ Copy the provided Nginx configuration:
-   ```bash
-   sudo cp deploy/nginx.conf.example /etc/nginx/sites-available/sqpas
-   ```
-2. 🖥️ Enable the site and remove the default Nginx page:
-   ```bash
-   sudo ln -sf /etc/nginx/sites-available/sqpas /etc/nginx/sites-enabled/
-   sudo rm -f /etc/nginx/sites-enabled/default
-   ```
-3. 🖥️ Test the configuration for syntax errors:
-   ```bash
-   sudo nginx -t
-   ```
-4. 🖥️ Restart Nginx to apply changes:
-   ```bash
-   sudo systemctl restart nginx
-   ```
-
----
-
-## Step 10: Verification Checklist 💻
-
-Open a browser on your local machine and navigate to `http://<EC2-PUBLIC-IP>`. Perform these checks:
-
-- [ ] **Flask starts successfully**: You see the login page.
-- [ ] **Nginx responds externally**: The URL is working via the public IP.
-- [ ] **Admin login works**: Log in with `admin_demo` credentials.
-- [ ] **MFA works**: Use the TOTP code (from your authenticator app) for the admin account.
-- [ ] **Setter Isolation**: Log in as `setter_a` and verify you cannot access `/admin` or `/officer`.
-- [ ] **Officer Isolation**: Log in as `officer_demo` and verify you cannot access `/admin/audit`.
-- [ ] **Encrypted Section Workflow**: As a setter, submit a section. The database will encrypt it.
-- [ ] **Approval and Release Workflow**: Admin can approve the section and assemble the paper. Officer can release it.
-- [ ] **Audit logs are generated**: Log in as admin, go to the Audit Dashboard, and confirm login events are visible.
-- [ ] **No secrets appear in logs**: Run `sudo journalctl -u sqpas -n 100` on the EC2 server and ensure passwords/keys are filtered.
-
----
-
-## Maintenance Commands 🖥️
-
-### Checking Logs
-To view the live application logs (Gunicorn + Flask):
 ```bash
+ssh -i your-key.pem ubuntu@<EC2-PUBLIC-IP>
+```
+
+Install required system packages:
+
+```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Python, pip, Git, Nginx, and PostgreSQL client
+sudo apt install -y python3 python3-pip python3-venv git nginx postgresql-client
+
+# Verify installations
+python3 --version   # Should be 3.10+
+git --version
+nginx -v
+```
+
+---
+
+## Step 5: Clone the Repository **[DEMO REQUIRED]**
+
+```bash
+# Clone the project
+cd /home/ubuntu
+git clone <YOUR-GITHUB-REPO-URL> sqpas
+cd sqpas
+```
+
+---
+
+## Step 6: Create Virtual Environment **[DEMO REQUIRED]**
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+
+# Install Python dependencies
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+---
+
+## Step 7: Install Python Requirements **[DEMO REQUIRED]**
+
+Already covered in Step 6. Verify key packages:
+
+```bash
+pip list | grep -E "Flask|SQLAlchemy|gunicorn|psycopg2|cryptography"
+```
+
+Expected output:
+```
+Flask                 3.x.x
+Flask-Login           0.6.x
+Flask-SQLAlchemy      3.x.x
+Flask-WTF             1.x.x
+gunicorn              22.x.x
+psycopg2-binary       2.9.x
+cryptography          43.x.x
+```
+
+---
+
+## Step 8: Configure Environment Variables **[DEMO REQUIRED]**
+
+Create the production `.env` file:
+
+```bash
+cd /home/ubuntu/sqpas
+
+# Copy the template
+cp .env.example .env
+
+# Generate secure keys
+SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+ENCRYPTION_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+
+echo "Generated SECRET_KEY:     $SECRET_KEY"
+echo "Generated ENCRYPTION_KEY: $ENCRYPTION_KEY"
+echo ""
+echo "⚠️  SAVE THESE KEYS SECURELY. Losing the ENCRYPTION_KEY means"
+echo "   all encrypted question papers are UNRECOVERABLE."
+```
+
+Edit `.env` with the generated values:
+
+```bash
+nano .env
+```
+
+Set these values:
+```ini
+FLASK_ENV=production
+SECRET_KEY=<paste-generated-secret-key>
+ENCRYPTION_KEY=<paste-generated-encryption-key>
+DATABASE_URL=postgresql://sqpas_user:<RDS-PASSWORD>@<RDS-ENDPOINT>:5432/sqpas_db
+LOG_LEVEL=INFO
+BEHIND_PROXY=true
+```
+
+Secure the file:
+```bash
+chmod 600 .env
+```
+
+**[PRODUCTION HARDENING]**: Use AWS Secrets Manager or Parameter Store instead of a `.env` file.
+
+---
+
+## Step 9: Create and Configure PostgreSQL RDS **[DEMO REQUIRED]**
+
+### 9a. Create the RDS Instance
+
+1. Go to **RDS → Create Database**.
+2. Configure:
+   - **Engine**: PostgreSQL 15
+   - **Template**: Free tier (for demo) or Production
+   - **DB Instance Identifier**: `sqpas-db`
+   - **Master username**: `sqpas_admin`
+   - **Master password**: Generate a strong password
+   - **Instance class**: `db.t3.micro` (free tier) or `db.t3.small`
+   - **Storage**: 20 GB gp3
+   - **VPC**: Same VPC as your EC2 instance
+   - **Public access**: No (only accessible from within the VPC)
+3. Under **Additional configuration**:
+   - **Initial database name**: `sqpas_db`
+4. Click **Create database** and wait for it to become available.
+
+### 9b. Configure Security Group for RDS
+
+Create or modify the RDS security group:
+
+| Type | Port | Source | Purpose |
+|------|------|--------|---------|
+| PostgreSQL | 5432 | EC2 Security Group | App → DB access |
+
+### 9c. Test Connection from EC2
+
+```bash
+psql -h <RDS-ENDPOINT> -U sqpas_admin -d sqpas_db
+# Enter the password when prompted
+# Type \q to exit
+```
+
+### 9d. Create Application User (Optional but Recommended)
+
+```sql
+-- Connect as sqpas_admin, then:
+CREATE USER sqpas_user WITH PASSWORD 'STRONG_PASSWORD_HERE';
+GRANT ALL PRIVILEGES ON DATABASE sqpas_db TO sqpas_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO sqpas_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO sqpas_user;
+\q
+```
+
+Update `DATABASE_URL` in `.env`:
+```
+DATABASE_URL=postgresql://sqpas_user:STRONG_PASSWORD_HERE@<RDS-ENDPOINT>:5432/sqpas_db
+```
+
+---
+
+## Step 10: Initialize the Database **[DEMO REQUIRED]**
+
+```bash
+cd /home/ubuntu/sqpas
+source venv/bin/activate
+
+# The Flask app creates tables automatically on first run.
+# To seed demo users:
+python seed.py
+
+# Verify tables were created:
+FLASK_ENV=production python -c "
+from app import create_app
+from app.extensions import db
+app = create_app()
+with app.app_context():
+    tables = db.engine.table_names() if hasattr(db.engine, 'table_names') else list(db.metadata.tables.keys())
+    print('Tables:', tables)
+"
+```
+
+> **Note**: `seed.py` creates demo users with pre-set passwords. For production, change all passwords and rotate MFA secrets after the initial demo.
+
+---
+
+## Step 11: Start the Application with Gunicorn **[DEMO REQUIRED]**
+
+### Quick Test
+
+```bash
+cd /home/ubuntu/sqpas
+source venv/bin/activate
+gunicorn wsgi:app --config gunicorn.conf.py
+```
+
+Verify: `curl http://127.0.0.1:8000/auth/login` should return HTML.
+
+### Set Up as a systemd Service
+
+```bash
+# Copy the service file
+sudo cp deploy/sqpas.service /etc/systemd/system/sqpas.service
+
+# Adjust paths if needed
+sudo nano /etc/systemd/system/sqpas.service
+
+# Enable and start the service
+sudo systemctl daemon-reload
+sudo systemctl enable sqpas
+sudo systemctl start sqpas
+
+# Check status
+sudo systemctl status sqpas
+
+# View logs
 sudo journalctl -u sqpas -f
 ```
 
-To view Nginx error logs:
+---
+
+## Step 12: Configure Nginx as Reverse Proxy **[DEMO REQUIRED]**
+
 ```bash
-sudo tail -f /var/log/nginx/error.log
+# Copy the example Nginx config
+sudo cp deploy/nginx.conf.example /etc/nginx/sites-available/sqpas
+
+# Edit the server_name if you have a domain
+sudo nano /etc/nginx/sites-available/sqpas
+
+# Enable the site
+sudo ln -sf /etc/nginx/sites-available/sqpas /etc/nginx/sites-enabled/sqpas
+sudo rm -f /etc/nginx/sites-enabled/default
+
+# Test Nginx configuration
+sudo nginx -t
+
+# Restart Nginx
+sudo systemctl restart nginx
+sudo systemctl enable nginx
 ```
 
-### Applying Code Changes
-If you push new code to GitHub and want to update the server:
+Verify: Open `http://<EC2-PUBLIC-IP>` in your browser. You should see the SQPAS login page.
+
+**[PRODUCTION HARDENING]**: Configure SSL/TLS with Let's Encrypt:
 ```bash
-cd /home/ubuntu/sqpas
-git pull origin main
-source venv/bin/activate
-pip install -r requirements.txt
-sudo systemctl restart sqpas
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d your-domain.com
 ```
 
 ---
 
-## Safe Teardown (For Demonstrations) ☁️
+## Step 13: Configure CloudWatch Logging **[PRODUCTION HARDENING]**
 
-AWS charges by the hour. When your demonstration is complete, tear down the resources:
+### 13a. Install the CloudWatch Agent
 
-1. ☁️ **EC2 Dashboard**: Select `sqpas-server`, go to **Instance State**, and choose **Terminate instance**.
-2. ☁️ **RDS Dashboard**: Select `sqpas-db`, go to **Actions**, and choose **Delete**. (Uncheck "Create final snapshot" to avoid storage costs).
-3. ☁️ Ensure no Elastic IPs are left unattached in the EC2 dashboard.
+```bash
+# Download and install
+wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+sudo dpkg -i amazon-cloudwatch-agent.deb
+
+# Copy the config
+sudo cp deploy/cloudwatch-agent-config.json /opt/aws/amazon-cloudwatch-agent/etc/
+
+# Start the agent
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+    -a fetch-config \
+    -m ec2 \
+    -s \
+    -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent-config.json
+```
+
+### 13b. IAM Role for CloudWatch
+
+Attach the `CloudWatchAgentServerPolicy` managed policy to the EC2 instance's IAM role.
+
+---
+
+## Step 14: Test the Deployed Application **[DEMO REQUIRED]**
+
+### Basic Health Check
+
+```bash
+# From EC2 instance
+curl -s http://127.0.0.1:8000/auth/login | head -20
+
+# From your browser
+# Navigate to http://<EC2-PUBLIC-IP>/
+```
+
+### Functional Testing
+
+1. **Login**: Use the demo credentials from `seed.py` output.
+2. **Create Paper**: Log in as admin → Create a question paper.
+3. **Submit Sections**: Log in as setter_a and setter_b → Submit sections.
+4. **Review & Approve**: Log in as admin → Approve sections → Assemble paper.
+5. **Release**: Log in as officer → Release the paper when time has passed.
+6. **Audit Logs**: Log in as admin → View audit dashboard.
+
+### Security Header Check
+
+```bash
+curl -I http://<EC2-PUBLIC-IP>/auth/login
+# Should see:
+#   X-Content-Type-Options: nosniff
+#   X-Frame-Options: SAMEORIGIN
+#   Referrer-Policy: strict-origin-when-cross-origin
+#   Content-Security-Policy: ...
+```
+
+---
+
+## Step 15: Cleanup — Avoid Unnecessary Charges **[DEMO REQUIRED]**
+
+> ⚠️ **IMPORTANT**: AWS charges by the hour. Always clean up after your demo.
+
+```bash
+# 1. Stop the application
+sudo systemctl stop sqpas
+
+# 2. Stop Nginx
+sudo systemctl stop nginx
+```
+
+**In the AWS Console:**
+
+1. **EC2**: Select your instance → Instance State → **Stop Instance** (to pause) or **Terminate Instance** (to delete permanently).
+2. **RDS**: Select your database → Actions → **Stop** (temporary) or **Delete** (permanent). Uncheck "Create final snapshot" for demo databases.
+3. **Elastic IP**: Release any allocated Elastic IPs (they charge when not attached to a running instance).
+4. **Security Groups**: Can be left (no charge) or deleted.
+
+---
+
+## Production Hardening Checklist
+
+These items are **not required for the college demo** but should be addressed before any real deployment:
+
+| Item | Status | Priority |
+|------|--------|----------|
+| SSL/TLS with Let's Encrypt or ACM | ⬜ | 🔴 Critical |
+| Change all demo user passwords | ⬜ | 🔴 Critical |
+| Rotate all MFA secrets | ⬜ | 🔴 Critical |
+| Use AWS Secrets Manager for credentials | ⬜ | 🟡 High |
+| Enable KMS envelope encryption | ⬜ | 🟡 High |
+| Set up automated backups for RDS | ⬜ | 🟡 High |
+| Enable RDS encryption at rest | ⬜ | 🟡 High |
+| Configure VPC with private subnets | ⬜ | 🟡 High |
+| Set up WAF (Web Application Firewall) | ⬜ | 🟢 Medium |
+| Enable CloudTrail for AWS API auditing | ⬜ | 🟢 Medium |
+| Set up monitoring alarms (CloudWatch) | ⬜ | 🟢 Medium |
+| Use a load balancer (ALB) | ⬜ | 🟢 Medium |
+| Implement rate limiting | ⬜ | 🟢 Medium |
+| Regular security patching schedule | ⬜ | 🟡 High |
+
+---
+
+## Troubleshooting
+
+### Application won't start
+```bash
+# Check logs
+sudo journalctl -u sqpas -n 50
+# Check .env file permissions
+ls -la /home/ubuntu/sqpas/.env
+# Test config
+cd /home/ubuntu/sqpas && source venv/bin/activate
+python -c "from app import create_app; app = create_app(); print('OK')"
+```
+
+### Can't connect to RDS
+```bash
+# Test connectivity
+nc -zv <RDS-ENDPOINT> 5432
+# Check security group allows EC2 → RDS
+# Check DATABASE_URL in .env
+```
+
+### Nginx shows 502 Bad Gateway
+```bash
+# Check if Gunicorn is running
+sudo systemctl status sqpas
+# Check Gunicorn is bound to 127.0.0.1:8000
+ss -tlnp | grep 8000
+# Check Nginx error log
+sudo tail -20 /var/log/nginx/error.log
+```
+
+### Static files not loading
+```bash
+# Nginx serves static files directly — check the alias path
+sudo nginx -t
+ls /home/ubuntu/sqpas/app/static/
+```

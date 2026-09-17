@@ -57,6 +57,23 @@ def login():
         # Password is correct — log the user in
         login_user(user)
 
+        from flask import current_app
+        is_dev = current_app.config.get('DEBUG') and not current_app.config.get('TESTING')
+
+        # Development MFA bypass
+        if current_app.config.get('DEV_AUTH_BYPASS') and is_dev:
+            session['mfa_verified'] = True
+            log_event(
+                user_id=user.id,
+                action='LOGIN_SUCCESS',
+                resource_type='user',
+                resource_id=user.id,
+                status='SUCCESS',
+                details='Login with Development MFA Bypass',
+            )
+            flash(f'Welcome, {user.username}! (Development MFA bypass active)', 'warning')
+            return redirect(url_for('dashboard.index'))
+
         # If MFA is enabled, redirect to MFA verification (do NOT grant full access yet)
         if user.mfa_enabled:
             session['mfa_verified'] = False
@@ -95,10 +112,10 @@ def mfa_verify():
         return redirect(url_for('dashboard.index'))
 
     if request.method == 'POST':
-        otp_code = request.form.get('otp_code', '').strip()
+        otp_code = request.form.get('otp_code', '').replace(' ', '').strip()
 
-        if not otp_code:
-            flash('Please enter the verification code.', 'error')
+        if not otp_code or not otp_code.isdigit():
+            flash('Please enter a valid numeric verification code.', 'error')
             return render_template('auth/mfa_verify.html'), 400
 
         # Verify the TOTP code
